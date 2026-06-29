@@ -216,3 +216,23 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+# === 前端依赖与产物 (Vue/React/Streamlit) ===
+node_modules/
+dist/
+.env.local
+.env.*.local
+*.local
+
+# === Docker & 本地数据库资产 ===
+.env
+!.env.example
+docker/volumes/
+postgres_data/
+
+# === 后端本地生成的临时资产 (避免误将生成的代码压缩包传上去) ===
+*.zip
+*.tar.gz
+# 如果后端有一个专门存放生成代码的本地目录，例如：
+/backend/output_codes/
