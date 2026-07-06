@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>彩虹计算器</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="calculator">
+        <div class="display">
+            <div class="expression" id="expression"></div>
+            <div class="result" id="result">0</div>
+        </div>
+        <div class="buttons">
+            <button class="btn btn-function btn-clear" data-value="C">C</button>
+            <button class="btn btn-function btn-backspace" data-value="⌫">⌫</button>
+            <button class="btn btn-operator btn-divide" data-value="÷">÷</button>
+            <button class="btn btn-operator btn-multiply" data-value="×">×</button>
+
+            <button class="btn btn-number btn-number-7" data-value="7">7</button>
+            <button class="btn btn-number btn-number-8" data-value="8">8</button>
+            <button class="btn btn-number btn-number-9" data-value="9">9</button>
+            <button class="btn btn-operator btn-minus" data-value="-">-</button>
+
+            <button class="btn btn-number btn-number-4" data-value="4">4</button>
+            <button class="btn btn-number btn-number-5" data-value="5">5</button>
+            <button class="btn btn-number btn-number-6" data-value="6">6</button>
+            <button class="btn btn-operator btn-plus" data-value="+">+</button>
+
+            <button class="btn btn-number btn-number-1" data-value="1">1</button>
+            <button class="btn btn-number btn-number-2" data-value="2">2</button>
+            <button class="btn btn-number btn-number-3" data-value="3">3</button>
+            <button class="btn btn-equals" data-value="=">=</button>
+
+            <button class="btn btn-number btn-number-0 zero" data-value="0">0</button>
+            <button class="btn btn-decimal" data-value=".">.</button>
+            <div class="placeholder"></div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
