@@ -102,9 +102,22 @@ export const useProjectStore = defineStore('project', () => {
     } catch { return null }
   }
 
+  // 【DELETE】删除项目
+  const deleteProject = async (projectId) => {
+    const res = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.detail || '删除失败')
+    }
+    projectList.value = projectList.value.filter(p => p.id !== projectId)
+    const data = await res.json()
+    return data
+  }
+
   return {
     projectList, currentProjectId, currentProject, lastCreateMsg,
     fetchProjects, selectProject, getProjectById,
-    createProject, fetchProjectStatus, approveProject, fetchPreviewUrl, fetchQaReport
+    createProject, fetchProjectStatus, approveProject, fetchPreviewUrl, fetchQaReport,
+    deleteProject
   }
 })

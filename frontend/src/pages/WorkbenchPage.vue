@@ -86,7 +86,7 @@ const chatMessages = ref([])
 const loading = ref(false)
 const submitting = ref(false)
 const modifying = ref(false)
-let revising = false
+const revising = ref(false)
 const inputText = ref('')
 let pollTimer = null
 const prdLoaded = ref(false)
@@ -113,7 +113,8 @@ const handleModify = async () => {
     const data = await res.json()
     if (res.ok && data.success) {
       project.value.status = 'RUNNING'
-      revising = true
+      revising.value = true
+      qaLoaded.value = false
       addMsg('系统','系','pm', data.message || '代码重构指令已下达，程序员正在修改代码...')
     }
   } catch { /* ignore */ }
@@ -153,9 +154,13 @@ const fetchStatus = async () => {
     })
     chatMessages.value.sort((a,b) => a.id-b.id)
   }
-  if (data.status==='PENDING_APPROVAL' && !prdLoaded.value) loadPrd()
-  if (data.status==='COMPLETED' && !qaLoaded.value) loadQa()
-    if (data.status==='COMPLETED' && revising) { revising = false; addMsg('系统','系','pm','项目已完成修改，请查看最新成果。') }
+  if (data.status==='PENDING_APPROVAL' && !prdLoaded.value) await loadPrd()
+  if (data.status==='COMPLETED' && !qaLoaded.value) await loadQa()
+  if (data.status==='COMPLETED' && revising.value) {
+    revising.value = false
+    addMsg('系统','系','pm','项目已完成修改，请查看最新成果。')
+    await loadQa()
+  }
 }
 
 const loadPrd = async () => {
@@ -224,8 +229,6 @@ watch(() => route.params.projectId, async (id) => {
   qaLoaded.value = chatMessages.value.some(m => m.file === 'QA测试报告.md')
   if (store.lastCreateMsg) { addMsg('系统','系','pm',store.lastCreateMsg); store.lastCreateMsg = '' }
   await fetchStatus()
-  // 页面加载时按需补拉（fetchStatus 的 polling 已处理首次检测）
-  if (project.value?.status !== 'INITIAL') loadPrd()
   if (project.value?.status === 'COMPLETED') loadPreview()
   loading.value = false; scrollBottom()
 }, { immediate: true })

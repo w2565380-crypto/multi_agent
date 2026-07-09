@@ -134,7 +134,6 @@ const agentLink = (type) => {
 // 智能体数据
 const agents = ref([
   { name: 'AI产品经理',   avatar: '🧑‍💻', type: 'pm',   description: '需求规划、PRD输出', isWorking: false, status: '' },
-  { name: 'AI程序员',     avatar: '🧑‍💻', type: 'dev',  description: '编码、接口开发',     isWorking: false, status: '' },
   { name: 'AI测试工程师', avatar: '🧑‍💻', type: 'test', description: '用例、缺陷检测',     isWorking: false, status: '' }
 ])
 

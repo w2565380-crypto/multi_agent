@@ -1,16 +1,5 @@
 <template>
   <main class="main-wrap">
-    <Particles
-      :particleCount="150"
-      :particleSpread="8"
-      :speed="0.08"
-      :particleColors="['#ffffff']"
-      :particleBaseSize="120"
-      :sizeRandomness="1"
-      :moveParticlesOnHover="true"
-      :particleHoverFactor="0.5"
-      :disableRotation="false"
-    />
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="page-title">
@@ -105,7 +94,7 @@
           <button class="btn-close" @click="closeFile">✕</button>
         </div>
         <div class="modal-body">
-          <div class="markdown-preview" v-html="renderedContent"></div>
+          <div class="markdown-preview" v-html="mdToHtml(selectedFile.content)"></div>
         </div>
       </div>
     </div>
@@ -116,10 +105,11 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useProjectStore } from '../stores/project.js'
-import Particles from '../components/Particles.vue'
+import { useAuthStore } from '../stores/auth.js'
 
 const route = useRoute()
 const store = useProjectStore()
+const auth = useAuthStore()
 
 // 项目上下文
 const projectId = computed(() => route.query.projectId)
@@ -360,6 +350,7 @@ src/
 const files = ref([])
 const selectedFile = ref(null)
 const searchQuery = ref('')
+const loadingFiles = ref(false)
 
 // 搜索过滤
 const filteredFiles = computed(() => {
@@ -370,9 +361,46 @@ const filteredFiles = computed(() => {
   )
 })
 
-// 当前无后端文件接口，使用模拟数据
-const fetchFiles = (type) => {
-  files.value = (mockFiles[type] || []).map(f => ({ ...f, isNew: true }))
+// API 接口映射
+const API_MAP = {
+  pm:   { url: (pid) => `/api/projects/${pid}/prd`,       parse: (d) => [{ name: 'PRD.md', content: d.prd_content }] },
+  dev:  { url: (pid) => `/api/projects/${pid}/code-files`, parse: (d) => (d.files || []).map(f => ({ name: f.file_name || f.file_path, content: f.code_content, preview: f.code_content?.slice(0, 200) })) },
+  test: { url: (pid) => `/api/projects/${pid}/qa-report`,  parse: (d) => [{ name: 'QA测试报告.md', content: d.qa_report }] },
+}
+
+const fetchFiles = async (type) => {
+  const pid = projectId.value
+  loadingFiles.value = true
+  try {
+    let data
+    if (pid) {
+      // 有项目上下文：调单项目接口
+      const api = API_MAP[type]
+      if (!api) { loadingFiles.value = false; return }
+      const res = await fetch(api.url(pid))
+      if (!res.ok) throw new Error('not found')
+      data = await res.json()
+      if (data.success) {
+        files.value = api.parse(data).map(f => ({ id: f.name, name: f.name, content: f.content, preview: f.preview || '', receivedAt: new Date().toLocaleString(), isNew: true }))
+      }
+    } else {
+      // 无项目上下文：调用户汇总接口
+      const res = await fetch(`/api/users/${auth.user.id}/files?type=${type}`)
+      if (!res.ok) throw new Error('not found')
+      data = await res.json()
+      if (data.success && data.files) {
+        files.value = data.files.map(f => ({
+          id: `${f.project_id}_${f.file_name}`,
+          name: `${f.project_title} - ${f.file_name}`,
+          content: f.content,
+          preview: f.content?.slice(0, 200) || '',
+          receivedAt: '',
+          isNew: true,
+        }))
+      }
+    }
+  } catch { files.value = [] }
+  loadingFiles.value = false
   setTimeout(() => files.value.forEach(f => f.isNew = false), 600)
 }
 
@@ -383,33 +411,20 @@ watch(() => route.params.type, (type) => {
   fetchFiles(type)
 }, { immediate: true })
 
-// 简单的 Markdown 渲染（将 ## 转为标题，- 转为列表等）
-const renderedContent = computed(() => {
-  if (!selectedFile.value) return ''
-  let html = selectedFile.value.content
-    // 代码块
-    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="code-block"><code>$2</code></pre>')
-    // 行内代码
-    .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
-    // 标题
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-    // 表格
-    .replace(/^\|(.+)\|$/gm, (match) => {
-      if (match.includes('---')) return ''
-      const cells = match.split('|').filter(c => c.trim())
-      return '<tr>' + cells.map(c => `<td>${c.trim()}</td>`).join('') + '</tr>'
-    })
-    // 加粗
+const mdToHtml = (md) => {
+  if (!md) return ''
+  return md
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/^### (.+)$/gm, '<h4>$1</h4>')
+    .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^# (.+)$/gm, '<h2>$1</h2>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    // 无序列表
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/^- (.+)$/gm, '<li>$1</li>')
-    // 换行
-    .replace(/\n\n/g, '<br><br>')
-    .replace(/\n/g, '<br>')
-  return html
-})
+    .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+    .replace(/^(?!<[hulc/])[^\n]+$/gm, '<p>$&</p>')
+    .replace(/\n/g, '')
+}
 
 const openFile = (file) => {
   selectedFile.value = file
@@ -705,36 +720,26 @@ const closeFile = () => {
   align-items: flex-start;
   margin-bottom: 16px;
   padding-bottom: 16px;
-  border-bottom: 1px solid rgba(0,0,0,0.08);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 .modal-header h3 {
   font-size: 18px;
   font-weight: 600;
+  color: #d0d0d8;
 }
 .modal-agent {
   font-size: 12px;
-  color: #86868B;
+  color: #888899;
   display: block;
   margin-top: 4px;
 }
 .btn-close {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(0,0,0,0.06);
-  cursor: pointer;
-  font-size: 16px;
-  color: #86868B;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; border: none;
+  background: rgba(255,255,255,0.06); cursor: pointer; font-size: 16px;
+  color: #888899; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center;
 }
-.btn-close:hover {
-  background: rgba(0,0,0,0.12);
-  color: #1D1D1F;
-}
+.btn-close:hover { background: rgba(255,255,255,0.12); color: #d0d0d8; }
 .modal-body {
   overflow-y: auto;
   flex: 1;
@@ -742,62 +747,14 @@ const closeFile = () => {
 
 /* Markdown 渲染样式 */
 .markdown-preview {
-  font-size: 14px;
-  line-height: 1.8;
-  color: #1D1D1F;
+  font-size: 13px; line-height: 1.8; color: #d0d0d8;
 }
-.markdown-preview :deep(h1) {
-  font-size: 22px;
-  font-weight: 700;
-  margin: 16px 0 12px;
-  color: #1D1D1F;
-}
-.markdown-preview :deep(h2) {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 14px 0 10px;
-  color: #1D1D1F;
-  padding-bottom: 6px;
-  border-bottom: 1px solid rgba(0,0,0,0.08);
-}
-.markdown-preview :deep(h3) {
-  font-size: 15px;
-  font-weight: 600;
-  margin: 12px 0 8px;
-}
-.markdown-preview :deep(strong) {
-  font-weight: 600;
-  color: #007AFF;
-}
-.markdown-preview :deep(li) {
-  margin-left: 20px;
-  margin-bottom: 4px;
-}
-.markdown-preview :deep(.code-block) {
-  background: rgba(28,28,30,0.06);
-  border-radius: 8px;
-  padding: 14px 16px;
-  margin: 12px 0;
-  overflow-x: auto;
-  font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-}
-.markdown-preview :deep(.inline-code) {
-  background: rgba(0,122,255,0.08);
-  color: #007AFF;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: 'SF Mono', 'Cascadia Code', monospace;
-  font-size: 13px;
-}
-.markdown-preview :deep(tr) {
-  display: flex;
-  gap: 0;
-}
-.markdown-preview :deep(td) {
-  padding: 4px 12px;
-  border: 1px solid rgba(0,0,0,0.08);
-  font-size: 13px;
-}
+.markdown-preview :deep(h2) { font-size: 20px; font-weight: 700; margin: 20px 0 12px; color: #e8e8f8; }
+.markdown-preview :deep(h3) { font-size: 16px; font-weight: 600; margin: 16px 0 8px; color: #d8d8f0; }
+.markdown-preview :deep(h4) { font-size: 14px; font-weight: 600; margin: 12px 0 6px; color: #c8c8e8; }
+.markdown-preview :deep(p) { margin-bottom: 8px; }
+.markdown-preview :deep(ul) { padding-left: 20px; margin-bottom: 10px; }
+.markdown-preview :deep(li) { margin-bottom: 4px; }
+.markdown-preview :deep(strong) { color: #e8e8f8; }
+.markdown-preview :deep(code) { background: rgba(124,154,255,0.15); color: #7c9aff; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 </style>

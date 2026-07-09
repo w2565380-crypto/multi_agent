@@ -151,7 +151,7 @@ const handleSubmit = async () => {
       // 注册成功后自动登录
       await auth.login(form.userName, form.password)
     }
-    router.push('/')
+    window.location.href = '/'
   } catch (err) {
     serverError.value = err.message || '操作失败，请重试'
   } finally {

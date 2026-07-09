@@ -38,6 +38,7 @@
       >
         <template #card="{ item }">
           <div class="project-card-inner">
+            <button class="card-delete-btn" @click.stop="handleDelete(item._id)" title="删除项目">✕</button>
             <div class="project-icon-area">
               <span class="project-letter">{{ item.name?.charAt(0) }}</span>
             </div>
@@ -162,6 +163,16 @@ const enterProject = ({ item }) => {
   router.push(`/projects/${item._id}`)
 }
 
+const handleDelete = async (id) => {
+  if (!confirm('确定删除该项目？此操作不可恢复。')) return
+  try {
+    await store.deleteProject(id)
+  } catch (e) {
+    alert(e.message)
+  }
+  projects.value = store.projectList
+}
+
 const handleCreate = async () => {
   if (!newProject.value.name.trim()) return
   try {
@@ -249,7 +260,19 @@ const handleCreate = async () => {
   justify-content: space-between;
   min-height: 220px;
   color: #fff;
+  position: relative;
 }
+
+.card-delete-btn {
+  position: absolute; top: 10px; right: 10px;
+  width: 24px; height: 24px; border-radius: 50%;
+  border: none; background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.5); font-size: 12px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s; z-index: 2;
+}
+.project-card-inner:hover .card-delete-btn { opacity: 1; }
+.card-delete-btn:hover { background: rgba(255,59,48,0.5); color: #fff; }
 
 .project-icon-area {
   margin-bottom: 16px;

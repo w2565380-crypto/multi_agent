@@ -4,18 +4,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from sqlalchemy import text
-from app.routers.projects import router as projects_router
-
-from app.routers.auth_router import router as auth_router
-from app.routers.projects import router as projects_router             
-# from app.routers.projects_router import router as db_projects_router    
-# from app.routers.agents_router import router as db_agents_router 
-#        
+from app.routers.auth_router import router as auth_router  
+from app.routers.projects import router as projects_router, user_router as user_router          
+     
 from app.database import engine, Base, IMAGES_DIR
-
-# from app.models.auth_model import UserDB
-# from app.models.projects_model import ProjectDB
-# from app.models.agents_model import ProjectAgentDB
 
 
 # 新增：使用最新的 lifespan 统一管理数据库初始化逻辑
@@ -60,6 +52,7 @@ app.mount("/avatars", StaticFiles(directory=IMAGES_DIR), name="avatars")
 
 # 注册项目管理相关的 API 接口
 app.include_router(projects_router)
+app.include_router(user_router)  
 
 # 注册用户认证与管理相关的 API 接口（来自 routers/auth.py）
 app.include_router(auth_router)
